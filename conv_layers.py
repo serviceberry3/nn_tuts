@@ -5,6 +5,7 @@
 from numpy import asarray
 from keras.models import Sequential
 from keras.layers import Conv1D
+from keras.layers import Conv2D
 
 print("1D EXAMPLE")
 
@@ -28,7 +29,7 @@ print(data)
 model = Sequential()
 
 #add parameters to model: 1x3 filter, 8x1 input
-model.add(Conv1D(1, 3, input_shape=(8, 1)))
+model.add(Conv1D(1, 3, input_shape = (8, 1)))
 
 #Filters in a conv layer usually initialized w/random weights. Here we'll manually specify weights for single filter. 
 #We'll define filter capable of detecting bumps (high input vals surround by lows) - [0, 1, 0]
@@ -86,25 +87,34 @@ print(data)
 #Create blank model
 model = Sequential()
 
+#Filter will be 2D and square with shape 3×3. The layer will expect input samples to have shape [columns, rows, channels] or [8,8,1]
+model.add(Conv2D(1, (3,3), input_shape = (8, 8, 1)))
 
-model.add(Conv2D(1, (3,3), input_shape=(8, 8, 1)))
-
-# define a vertical line detector
+#Define filter: a vertical line detector
 detector = [[[[0]],[[1]],[[0]]],
             [[[0]],[[1]],[[0]]],
             [[[0]],[[1]],[[0]]]]
-
+            
+#Finalize weight initialization with bias as 0
 weights = [asarray(detector), asarray([0.0])]
 
-# store the weights in the model
+#Store weights in the model
 model.set_weights(weights)
 
 #Confirm weights
 print(model.get_weights())
 
-# apply filter to input data
+#Apply filter to input data
 yhat = model.predict(data)
 
+
+#Shape of feature map output will be 4D [batch, rows, columns, filters]. 
+#We did a single batch and have single filter (one filter and one input channel), so output shape is [1, ?, ?, 1].
+#Can pretty-print content of the single feature map as follows:
+
+#iterate over all rows in feature map
 for r in range(yhat.shape[1]):
-	# print each column in the row
-	print([yhat[0,r,c,0] for c in range(yhat.shape[2])])
+	#Print each column in this row
+	print([yhat[0, r, c, 0] for c in range(yhat.shape[2])])
+
+#The filter was applied top-left to bottom-right, using dot product each time
