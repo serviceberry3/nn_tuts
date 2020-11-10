@@ -1,5 +1,9 @@
 #Teaching myself about convolutional layers and filters in neural networks
 
+'''A convolution is simple application of a filter to an input that results in an activation. Repeated 
+application of same filter to an input results in map of activations called feature map, indicating 
+locations and strength of a detected feature in an input, such as an image.'''
+
 	
 #1D CONVOLUTION EXAMPLE
 from numpy import asarray
