@@ -175,6 +175,77 @@ def calculate_hidden_delta(delta_plus_1, w_l, z_l):
     '''Formal notation: delta^(l) = (transpose(W^l)) * delta^(l+1)) * f'(z^(l))'''
     return np.dot(np.transpose(w_l), delta_plus_1) * f_deriv(z_l)
 
+#train the network
+def train_nn(nn_structure, X, y, iter_num=3000, alpha=0.25):
+    #initialize the weights and biases
+    W, b = setup_and_init_weights(nn_structure)
+
+    cnt = 0
+
+    #set m to number of training data we have
+    m = len(y)
+
+    avg_cost_func = []
+
+    print('Starting gradient descent for {} iterations'.format(iter_num))
+
+    #do iter_num iterations
+    while cnt < iter_num:
+        if cnt % 1000 == 0:
+            print('Iteration {} of {}'.format(cnt, iter_num))
+
+        #initialize cumulative sums
+        tri_W, tri_b = init_tri_values(nn_structure)
+
+        avg_cost = 0
+
+        #iterate over all training data
+        for i in range(len(y)):
+            delta = {}
+
+            #perform feed-forward pass and return stored h and z values to be used in gradient descent step
+            h, z = feed_forward(X[i, :], W, b)
+
+            #loop from nl-1 to 1 backpropogating the errors
+            for l in range(len(nn_structure), 0, -1):
+                if l == len(nn_structure):
+                    #store the out layer delta if we're on output layer
+                    delta[l] = calculate_out_layer_delta(y[i,:], h[l], z[l])
+
+                    avg_cost += np.linalg.norm((y[i,:] - h[l]))
+
+                else:
+                    if l > 1:
+                        #get hidden layer delta
+                        delta[l] = calculate_hidden_delta(delta[l+1], W[l], z[l])
+
+                    '''Formal notation: triW^(l) = triW^(l) + delta^(l+1) * transpose(h^(l))'''
+                    tri_W[l] += np.dot(delta[l+1][:,np.newaxis], np.transpose(h[l][:, np.newaxis]))
+
+                    '''Formal notation: trib^(l) = trib^(l) + delta^(l+1)'''
+                    tri_b[l] += delta[l+1]
+
+        #perform gradient descent step for wts in each layer
+        for l in range(len(nn_structure) - 1, 0, -1):
+            W[l] += -alpha * (1.0/m * tri_W[l])
+            b[l] += -alpha * (1.0/m * tri_b[l])
+
+        #complete avg cost calc
+        avg_cost = 1.0/m * avg_cost
+        avg_cost_func.append(avg_cost)
+        cnt+=1
+
+    return W, b, avg_cost_func
+
+
+#run a training session of the model to get ideal weights and biases
+W, b, avg_cost_func = train_nn(nn_structure, X_train, y_v_train)
+
+                    
+
+
+    
+
 
 
 
