@@ -9,6 +9,7 @@ w2 = np.zeros((1,3))
 
 #get row 0, all columns of w2, set to this
 w2[0,:] = np.array([0.5, 0.5, 0.5])
+#print(w2)
 
 #set up dummy values in layer 1 and 2 bias weights
 b1 = np.array([0.8, 0.8, 0.8])
@@ -55,28 +56,40 @@ def simple_looped_nn_calc(n_layers, x, w, b): #num layers in network, x(inputs a
 
 #set up a test
 w = [w1, w2]
+print("WEIGHTS:", w)
 b = [b1, b2]
 
 #a dummy x input vector
 x = [1.5, 2.0, 3.0]
 
-print(simple_looped_nn_calc(3, x, w, b))
+print("Result for naive feed fwd:", simple_looped_nn_calc(3, x, w, b))
 
 
 #A faster implementation of feed-forward using matrices/linear algebra
 def matrix_feed_forward_calc(n_layers, x, w, b):
+    #iterate over number of layers-1
     for l in range(n_layers-1):
+        #if this is first layer, set node_in to the input
         if l == 0:
             node_in = x
+
+        #otherwise this input is output from last time
         else:
             node_in = h
 
+        #matrix arithmetic. multiply appropriate weights matrix by 3x1 node_in
+        #matrix, then add the appropriate biases matrix, to get 3x1 matrix (if had 3x3 wts
+        #mat) or 1x1 mat (if had just 3x1 wts mat) of inputs to the next layer
         z = w[l].dot(node_in) + b[l]
-        h = f(z)
 
+        #finally run calculated 3x1 input matrix for this layer through the sigmoid fxn
+        #to get output of this layer
+        h = f(z) #yields single value if this is the last hidden layer
+
+    #return the final output sum
     return h
 
-print(matrix_feed_forward_calc(3, x, w, b))
+print("Result for feed fwd w/matrices:", matrix_feed_forward_calc(3, x, w, b))
 
             
             
