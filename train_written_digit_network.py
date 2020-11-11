@@ -88,7 +88,7 @@ output layer nodes to predict digits. Also need a hidden layer in our network to
 Usually, num of hidden layer nodes is between num of input layers and the number of output layers. '''
 nn_structure = [64,30,10] #30 nodes for hidden layer
 
-#set up sigmoid activation function and its derivative for the backprop calculations
+#set up sigmoid activation function, and its derivative for the backprop calculations
 def f(x):
     return 1 / (1 + np.exp(-x))
 
@@ -103,11 +103,14 @@ def setup_and_init_weights(nn_structure):
     W = {}
     b = {}
 
-    #iterate over the three dimensions, skipping the input layer
+    #iterate over the three dimensions, skipping the input layer (will just be two iterations)
     for l in range (1, len(nn_structure)):
         #weights: sets up key in dict as the dimension num, and the value as 2D array of random values (#nodes in this layer) x
         #(# nodes in previous layer)
         W[l] = r.random_sample((nn_structure[l], nn_structure[l-1]))
+
+        #Note that W[1] will contain 2D weights array containing weights for first layer to second layer
+        #and W[2] will contain 2D weights array containing weights for second layer to third layer
 
         #biases: sets up key in dict as dimension num, and value as 1D array of random values (length of this dimension),
         #signifying a separate bias to be added for each node
@@ -136,8 +139,8 @@ def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (key
     z = {}
 
     #iterate from 1 thru (num of total layers - 1), which is just 2 in our case. So will iterate just twice
-    for l in range(1, len(W) + 1):
-        #if first layer, input into the weights is x
+    for l in range(1, len(W) + 1): #we call the input layer layer 1, hidden layer layer 2, output layer layer 3
+        #if first layer (input layer), input into the weights is x
         if l == 1:
             node_in = x
 
@@ -147,18 +150,30 @@ def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (key
 
         #CALCULATE OUTPUT OF NEXT LAYER
 
-        #at key (layer number + 1) in z, store result of:
-        #matrix arithmetic. multiply appropriate 2D weights array (matrix) by node_in
-        #matrix, then add the appropriate 1D biases matrix for this layer, to get 30x64 matrix (if had 30x64 wts
-        #mat and 1x64 input) of inputs to the next layer, OR 10x64 mat (if had 10x30 wts mat and 30x64) of final outputs
+        #print("Node_in:", node_in)
+        #print("Shape of node_in:", node_in.shape)
+
+        #print("Shape of W[l]:" , W[l].shape)
+
+        '''at key (layer number + 1) in z, store result of:
+        Matrix arithmetic. multiply appropriate 2D weights array (matrix) by node_in
+        matrix, then add the appropriate 1D biases matrix for this layer, to get 30x1 matrix (if had 30x64 wts
+        mat and 64x1 input) of inputs to the next layer, OR 10x1 mat (if had 10x30 wts mat and 30x1 from last lyr) of
+        final outputs'''
         z[l+1] = W[l].dot(node_in) + b[l] #z is input to the activ fxn for a given layer
         '''Formal notation: z^(l+1) = W^(l) * h^(l) + b^(l)'''
-        
+
+        #print("Shape of z[l+1]:", z[l+1].shape)
+
+        #Note here that z[2] will contain the calculated matrix for (first set of wts) * input + first biases
+        #and z[3] will contain calculated matrix for (outputs of first layer) * (second set of weights) + second biases
 
         #at key (layer number + 1) in h, store result of running this z through the activation function. So we're passing
         #result as node_in of next layer
         h[l+1] = f(z[l+1]) #h is output of a given layer
         '''Formal notation: h^(l) = f(z^(l))'''
+
+        #Note here that h[2] will contain final output of the first layer, and h[3] will contain final output of the second layer
 
     
     return h, z
@@ -176,7 +191,7 @@ def calculate_hidden_delta(delta_plus_1, w_l, z_l):
     return np.dot(np.transpose(w_l), delta_plus_1) * f_deriv(z_l)
 
 #train the network
-def train_nn(nn_structure, X, y, iter_num=3000, alpha=0.25):
+def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
     #initialize the weights and biases
     W, b = setup_and_init_weights(nn_structure)
 
@@ -212,6 +227,7 @@ def train_nn(nn_structure, X, y, iter_num=3000, alpha=0.25):
                     #store the out layer delta if we're on output layer
                     delta[l] = calculate_out_layer_delta(y[i,:], h[l], z[l])
 
+                    #add to cumulative sum of average cost
                     avg_cost += np.linalg.norm((y[i,:] - h[l]))
 
                 else:
