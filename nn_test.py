@@ -62,6 +62,22 @@ x = [1.5, 2.0, 3.0]
 
 print(simple_looped_nn_calc(3, x, w, b))
 
+
+#A faster implementation of feed-forward using matrices/linear algebra
+def matrix_feed_forward_calc(n_layers, x, w, b):
+    for l in range(n_layers-1):
+        if l == 0:
+            node_in = x
+        else:
+            node_in = h
+
+        z = w[l].dot(node_in) + b[l]
+        h = f(z)
+
+    return h
+
+print(matrix_feed_forward_calc(3, x, w, b))
+
             
             
             
