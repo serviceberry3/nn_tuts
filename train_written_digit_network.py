@@ -2,6 +2,7 @@
 
 from sklearn.datasets import load_digits
 import matplotlib.pyplot as plt
+import sys
 
 #load up the digit-pixel map dataset
 digits = load_digits()
@@ -46,6 +47,8 @@ y = digits.target
 #randomly separate training and testing sets: make training 60% of data, testing 40%
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
 
+
+
 '''Need output layer to predict whether digit represented by input pixels is between 0 and 9. Sensible nn architecture for this
 would be to have output layer of 10 nodes, each representing a digit from 0-9. Want to train network so that when image of the
 digit “5” is presented, node in output layer representing 5 has highest value. Ideally, output like this:
@@ -55,6 +58,10 @@ For MNIST data supplied in scikit learn dataset, the “targets” or classifica
 single number. Need to convert that num into vector so it lines up with our 10 node output layer. In other words, if
 target val in dataset is “1”, want to convert it into: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0].'''
 import numpy as np
+#don't use ellipsis to truncate arrays when printing
+np.set_printoptions(threshold=sys.maxsize)
+
+print(X_train)
 
 #converts 1D array of correct digits to a 2D array with digits replaced as 1D arrays as shown in above blurb
 def convert_y_to_vect(y):
@@ -75,6 +82,108 @@ y_v_test = convert_y_to_vect(y_test)
 
 #verify that the conversion worked
 print(y_train[0], y_v_train[0])
+
+''' For input layer, need 64 nodes to cover 64 pixels in the image. As discussed, need 10 
+output layer nodes to predict digits. Also need a hidden layer in our network to allow for complexity of the task.
+Usually, num of hidden layer nodes is between num of input layers and the number of output layers. '''
+nn_structure = [64,30,10] #30 nodes for hidden layer
+
+#set up sigmoid activation function and its derivative for the backprop calculations
+def f(x):
+    return 1 / (1 + np.exp(-x))
+
+def f_deriv(x):
+    return f(x) * (1 - f(x))
+
+import numpy.random as r
+
+#start with random weights
+def setup_and_init_weights(nn_structure):
+    #intitialize weights and biases to empty dict
+    W = {}
+    b = {}
+
+    #iterate over the three dimensions, skipping the input layer
+    for l in range (1, len(nn_structure)):
+        #weights: sets up key in dict as the dimension num, and the value as 2D array of random values (#nodes in this layer) x
+        #(# nodes in previous layer)
+        W[l] = r.random_sample((nn_structure[l], nn_structure[l-1]))
+
+        #biases: sets up key in dict as dimension num, and value as 1D array of random values (length of this dimension),
+        #signifying a separate bias to be added for each node
+        b[l] = r.random_sample((nn_structure[l],))
+        
+    #see what we got
+    print(W)
+    print(b)
+    return W, b
+
+#set mean accumulation values ΔW and Δb to zero (need to be same size as weight and bias matrices)
+def init_tri_values(nn_structure):
+    tri_W = {}
+    tri_b = {}
+
+    for l in range(1, len(nn_structure)):
+        tri_W[l] = np.zeros((nn_structure[l], nn_structure[l-1]))
+        tri_b[l] = np.zeros((nn_structure[l],))
+
+    return tri_W, tri_b
+
+
+#feed_forward pass through the network to calculate the 10 outputs given a set of 64 inputs
+def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (keys to 2D), and biases dict (keys to 1D)
+    h = {1: x}
+    z = {}
+
+    #iterate from 1 thru (num of total layers - 1), which is just 2 in our case. So will iterate just twice
+    for l in range(1, len(W) + 1):
+        #if first layer, input into the weights is x
+        if l == 1:
+            node_in = x
+
+        #otherwise, input into the weights is output from last layer
+        else:
+            node_in = h[l]
+
+        #CALCULATE OUTPUT OF NEXT LAYER
+
+        #at key (layer number + 1) in z, store result of:
+        #matrix arithmetic. multiply appropriate 2D weights array (matrix) by node_in
+        #matrix, then add the appropriate 1D biases matrix for this layer, to get 30x64 matrix (if had 30x64 wts
+        #mat and 1x64 input) of inputs to the next layer, OR 10x64 mat (if had 10x30 wts mat and 30x64) of final outputs
+        z[l+1] = W[l].dot(node_in) + b[l] #z is input to the activ fxn for a given layer
+        '''Formal notation: z^(l+1) = W^(l) * h^(l) + b^(l)'''
+        
+
+        #at key (layer number + 1) in h, store result of running this z through the activation function. So we're passing
+        #result as node_in of next layer
+        h[l+1] = f(z[l+1]) #h is output of a given layer
+        '''Formal notation: h^(l) = f(z^(l))'''
+
+    
+    return h, z
+
+'''calculate output layer delta, which equals rate of change of cost fxn for entire newtork w.r.t. input z for this node of
+output lyr. This can be expanded to (rt of change of cost fxn w.r.t. output of this output lyr node) *
+(rt of chng of output of this output lyr node w.r.t. input z for this node of output lyr). That's what's shown below
+after the derivatives are calculated'''
+def calculate_out_layer_delta(y, h_out, z_out):
+    '''Formal notation: delta_i^(nl) = -(y_i - h_i^(nl)) * f'(z_i^(nl))'''
+    return -(y - h_out) * f_deriv(z_out)
+
+def calculate_hidden_delta(delta_plus_1, w_l, z_l):
+    '''Formal notation: delta^(l) = (transpose(W^l)) * delta^(l+1)) * f'(z^(l))'''
+    return np.dot(np.transpose(w_l), delta_plus_1) * f_deriv(z_l)
+
+
+
+
+    
+
+
+        
+
+
 
 
 
