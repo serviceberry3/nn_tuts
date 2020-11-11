@@ -180,7 +180,7 @@ def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (key
 
 '''calculate output layer delta, which equals rate of change of cost fxn for entire network w.r.t. input z matrix for output lyr, which we'll say is dJ/dz.
 This can be expanded to (rt of change of cost fxn w.r.t. output of the output lyr) *
-(rt of chng of output of this output lyr node w.r.t. input z for this node of output lyr). That's what's shown below
+(rt of chng of output of output lyr w.r.t. input z for output lyr). That's what's shown below
 after the derivatives are calculated. Can be represented as dJ/dh * dh/dz. Notice that here, since it's the output layer, we can define how J will vary
 with respect to h by taking the derivative of the cost fxn directly (cost fxn is J(w,b,x,y) = 1/2 ||ytrue - h^(nl)||^2. However, for hidden layers, J for the
 whole network won't vary w.r.t. output of those layers just based on the cost fxn...we have to take into acct the wts connecting the hidden layers to the output
@@ -190,11 +190,15 @@ def calculate_out_layer_delta(ground_truth_output, h_of_hidden_lyr, z_of_hidden_
     #(outputs of first layer) * (second set of weights) + second biases, before activation fxn was applied (in other words, input to hidden lyr)
     
     '''Formal notation: delta^(nl) = -(y - h^(nl)) * f'(z^(nl))'''
-    return -(ground_truth_output - h_of_hidden_lyr) * f_deriv(z_of_hidden_lyr)
+    return -(ground_truth_output - h_of_hidden_lyr) * f_deriv(z_of_hidden_lyr) #the return is a 10x1 mat containing the 10 output deltas
 
-def calculate_hidden_delta(delta_plus_1, w_l, z_l):
+'''Delta calculation for hidden lyr is similar to output lyr delta calculation, but now we can't just take dJ/dh as the deriv of the cost fxn. Instead,
+dJ/dh(l2, or whatever hidden lyr this is) is equal to (deltas for one layer fwd) * (wts for this layer). That makes sense. We're just taking the original
+matrix of deltas from one lyr forward and factoring in the weights, which will of course affect the cost for the network as a whole.'''
+def calculate_hidden_delta(next_layer_delta, hidden_lyr_wts, hidden_lyr_z):
     '''Formal notation: delta^(l) = (transpose(W^l)) * delta^(l+1)) * f'(z^(l))'''
-    return np.dot(np.transpose(w_l), delta_plus_1) * f_deriv(z_l)
+    return np.dot(np.transpose(hidden_lyr_wts), next_layer_delta) * f_deriv(hidden_lyr_z) #note that wts matrix has to be transposed so the mats can
+    #be multiplied
 
 #train the network
 def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
@@ -244,18 +248,22 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
                     #digit vector for this input data; h[3] is a 10x1 mat containing outputs of the hidden layer (final outputs); z[3] is 10x1 mat containing
                     #(outputs of first layer) * (second set of weights) + second biases, before activation fxn was applied
 
+
                     #should all be the same shape
-                    print("SHAPES:" , y[i,:].shape, h[l].shape, z[l].shape) 
+                    print("SHAPES:" , y[i,:].shape, h[l].shape, z[l].shape, delta[l].shape) 
 
                     #Calculate J, the cost function, and add to cumulative sum of cost.
                     #cost fxn: J(w,b,x,y) = 1/2 ||ytrue - h^(nl)||^2
                     avg_cost += np.linalg.norm((y[i,:] - h[l]))
 
-                #skip this for the input layer (so this will only execute once, for the single hidden lyr we have)
                 else:
+                    #skip this for the input layer (so this will only execute once, for the single hidden lyr we have)
                     if l > 1:
                         #get hidden layer delta
-                        delta[l] = calculate_hidden_delta(delta[l+1], W[l], z[l])
+                        delta[l] = calculate_hidden_delta(delta[l+1], W[l], z[l]) #delta[2+1] is delta calculated from 1 layer forward (in this case
+                        #it's gonna be the delta from output layer. W[2] is 2D wts array for the hidden lyr, and z[2] is calculated matrix for (first
+                        #set of wts) * input + first biases (the input to the hidden lyr)
+
 
                     '''Formal notation: triW^(l) = triW^(l) + delta^(l+1) * transpose(h^(l))'''
                     tri_W[l] += np.dot(delta[l+1][:,np.newaxis], np.transpose(h[l][:, np.newaxis]))
@@ -263,14 +271,20 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
                     '''Formal notation: trib^(l) = trib^(l) + delta^(l+1)'''
                     tri_b[l] += delta[l+1]
 
+
         #perform gradient descent step for wts in each layer
         for l in range(len(nn_structure) - 1, 0, -1):
+            
             W[l] += -alpha * (1.0/m * tri_W[l])
             b[l] += -alpha * (1.0/m * tri_b[l])
 
-        #complete avg cost calc
+        #complete avg cost calc by dividing summed costs by number of training data (m)
         avg_cost = 1.0/m * avg_cost
+
+        #add avg cost to the array so we can graph later
         avg_cost_func.append(avg_cost)
+
+        #increment iteration counter
         cnt+=1
 
     return W, b, avg_cost_func
@@ -278,6 +292,14 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
 
 #run a training session of the model to get ideal weights and biases
 W, b, avg_cost_func = train_nn(nn_structure, X_train, y_v_train)
+
+#graph trajectory of cost as the network got smarter
+plt.plot(avg_cost_func)
+plt.ylabel('Average J')
+plt.xlabel('Iteration number')
+plt.show()
+
+
 
                     
 
