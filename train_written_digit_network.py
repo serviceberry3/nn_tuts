@@ -61,7 +61,7 @@ import numpy as np
 #don't use ellipsis to truncate arrays when printing
 np.set_printoptions(threshold=sys.maxsize)
 
-print(X_train)
+#print(X_train)
 
 #converts 1D array of correct digits to a 2D array with digits replaced as 1D arrays as shown in above blurb
 def convert_y_to_vect(y):
@@ -160,7 +160,7 @@ def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (key
         matrix, then add the appropriate 1D biases matrix for this layer, to get 30x1 matrix (if had 30x64 wts
         mat and 64x1 input) of inputs to the next layer, OR 10x1 mat (if had 10x30 wts mat and 30x1 from last lyr) of
         final outputs'''
-        z[l+1] = W[l].dot(node_in) + b[l] #z is input to the activ fxn for a given layer
+        z[l+1] = W[l].dot(node_in) + b[l] #z is summated input to the activ fxn for a given layer
         '''Formal notation: z^(l+1) = W^(l) * h^(l) + b^(l)'''
 
         #print("Shape of z[l+1]:", z[l+1].shape)
@@ -175,16 +175,22 @@ def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (key
 
         #Note here that h[2] will contain final output of the first layer, and h[3] will contain final output of the second layer
 
-    
+
     return h, z
 
-'''calculate output layer delta, which equals rate of change of cost fxn for entire newtork w.r.t. input z for this node of
-output lyr. This can be expanded to (rt of change of cost fxn w.r.t. output of this output lyr node) *
+'''calculate output layer delta, which equals rate of change of cost fxn for entire network w.r.t. input z matrix for output lyr, which we'll say is dJ/dz.
+This can be expanded to (rt of change of cost fxn w.r.t. output of the output lyr) *
 (rt of chng of output of this output lyr node w.r.t. input z for this node of output lyr). That's what's shown below
-after the derivatives are calculated'''
-def calculate_out_layer_delta(y, h_out, z_out):
-    '''Formal notation: delta_i^(nl) = -(y_i - h_i^(nl)) * f'(z_i^(nl))'''
-    return -(y - h_out) * f_deriv(z_out)
+after the derivatives are calculated. Can be represented as dJ/dh * dh/dz. Notice that here, since it's the output layer, we can define how J will vary
+with respect to h by taking the derivative of the cost fxn directly (cost fxn is J(w,b,x,y) = 1/2 ||ytrue - h^(nl)||^2. However, for hidden layers, J for the
+whole network won't vary w.r.t. output of those layers just based on the cost fxn...we have to take into acct the wts connecting the hidden layers to the output
+layer...'''
+def calculate_out_layer_delta(ground_truth_output, h_of_hidden_lyr, z_of_hidden_lyr): #param 1 is CORRECT 10x1 output
+    #digit vector for this input data; param 2 is a 10x1 mat containing outputs of the hidden (2nd) layer (final outputs); param 3 is 10x1 mat containing
+    #(outputs of first layer) * (second set of weights) + second biases, before activation fxn was applied (in other words, input to hidden lyr)
+    
+    '''Formal notation: delta^(nl) = -(y - h^(nl)) * f'(z^(nl))'''
+    return -(ground_truth_output - h_of_hidden_lyr) * f_deriv(z_of_hidden_lyr)
 
 def calculate_hidden_delta(delta_plus_1, w_l, z_l):
     '''Formal notation: delta^(l) = (transpose(W^l)) * delta^(l+1)) * f'(z^(l))'''
@@ -195,17 +201,20 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
     #initialize the weights and biases
     W, b = setup_and_init_weights(nn_structure)
 
+    #initialize iteration counter to 0
     cnt = 0
 
     #set m to number of training data we have
     m = len(y)
 
+    #set average cost function to empty array. Will be used to monitor how the average cost function changes as we progress through the training 
     avg_cost_func = []
 
     print('Starting gradient descent for {} iterations'.format(iter_num))
 
     #do iter_num iterations
     while cnt < iter_num:
+        #occasionally print out status
         if cnt % 1000 == 0:
             print('Iteration {} of {}'.format(cnt, iter_num))
 
@@ -214,22 +223,35 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
 
         avg_cost = 0
 
-        #iterate over all training data
+        #for every training run, iterate over all training data
         for i in range(len(y)):
+            #initialize delat to empty dict
             delta = {}
 
             #perform feed-forward pass and return stored h and z values to be used in gradient descent step
-            h, z = feed_forward(X[i, :], W, b)
+            h, z = feed_forward(X[i, :], W, b) #pass in just a 64x1 1D input array, and the full 2D wts and 1D biases matrix (via dict)
 
-            #loop from nl-1 to 1 backpropogating the errors
+
+            #BACKPROP
+            
+            #loop from 3 through 1 backpropogating the errors
             for l in range(len(nn_structure), 0, -1):
+                #check if this is the output layer
                 if l == len(nn_structure):
+                    
                     #store the out layer delta if we're on output layer
-                    delta[l] = calculate_out_layer_delta(y[i,:], h[l], z[l])
+                    delta[l] = calculate_out_layer_delta(y[i,:], h[l], z[l]) #pass in row i, all cols of the ground truth data (corresponds to CORRECT 10x1 output
+                    #digit vector for this input data; h[3] is a 10x1 mat containing outputs of the hidden layer (final outputs); z[3] is 10x1 mat containing
+                    #(outputs of first layer) * (second set of weights) + second biases, before activation fxn was applied
 
-                    #add to cumulative sum of average cost
+                    #should all be the same shape
+                    print("SHAPES:" , y[i,:].shape, h[l].shape, z[l].shape) 
+
+                    #Calculate J, the cost function, and add to cumulative sum of cost.
+                    #cost fxn: J(w,b,x,y) = 1/2 ||ytrue - h^(nl)||^2
                     avg_cost += np.linalg.norm((y[i,:] - h[l]))
 
+                #skip this for the input layer (so this will only execute once, for the single hidden lyr we have)
                 else:
                     if l > 1:
                         #get hidden layer delta
