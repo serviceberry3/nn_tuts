@@ -33,4 +33,19 @@ X=X_scale.fit_transform(digits.data)
 #make sure data was scaled
 print(X[0,:])
 
+'''To make sure that we're not creating models that are too complex ("overfitted"), it is
+common practice to split dataset into training set and test set. Training set is data that
+model will be trained on; test set is data that model will be tested on after it's been trained.
+Amt of training data is always more numerous than testing data and usually between 60-80%
+of the total dataset.'''
+from sklearn.model_selection import train_test_split
+
+#set y to the "correct digit" data
+y = digits.target
+
+#randomly separate training and testing sets: make training 60% of data, testing 40%
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+
+
+
 
