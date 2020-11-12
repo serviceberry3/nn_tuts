@@ -11,9 +11,9 @@ digits = load_digits()
 print(digits.data.shape)
 
 #make sure we can get the images, test by displaying the "1" image
-plt.gray()
+'''plt.gray()
 plt.matshow(digits.images[1])
-plt.show()
+plt.show()'''
 
 #let's look at one of the dataset pixel representations. Display row 0, all columns
 #of digits.data
@@ -175,10 +175,9 @@ def feed_forward(x, W, b): #takes set of inputs(1D of len 64), weights dict (key
 
         #Note here that h[2] will contain final output of the first layer, and h[3] will contain final output of the second layer
 
-
     return h, z
 
-'''calculate output layer delta, which equals rate of change of cost fxn for entire network w.r.t. input z matrix for output lyr, which we'll say is dJ/dz.
+'''Calculate output layer delta, which equals rate of change of cost fxn for entire network w.r.t. input z matrix for output lyr, which we'll say is dJ/dz.
 This can be expanded to (rt of change of cost fxn w.r.t. output of the output lyr) *
 (rt of chng of output of output lyr w.r.t. input z for output lyr). That's what's shown below
 after the derivatives are calculated. Can be represented as dJ/dh * dh/dz. Notice that here, since it's the output layer, we can define how J will vary
@@ -201,7 +200,7 @@ def calculate_hidden_delta(next_layer_delta, hidden_lyr_wts, hidden_lyr_z):
     #be multiplied
 
 #train the network
-def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
+def train_nn(nn_structure, X, y, iter_num=3000, alpha=0.25):
     #initialize the weights and biases
     W, b = setup_and_init_weights(nn_structure)
 
@@ -223,7 +222,7 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
             print('Iteration {} of {}'.format(cnt, iter_num))
 
         #initialize cumulative sums
-        tri_W, tri_b = init_tri_values(nn_structure)
+        cumulative_dJ_dW_sum, cumulative_dJ_db_sum = init_tri_values(nn_structure)
 
         avg_cost = 0
 
@@ -250,7 +249,7 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
 
 
                     #should all be the same shape
-                    print("SHAPES:" , y[i,:].shape, h[l].shape, z[l].shape, delta[l].shape) 
+                    #print("SHAPES:" , y[i,:].shape, h[l].shape, z[l].shape, delta[l].shape) 
 
                     #Calculate J, the cost function, and add to cumulative sum of cost.
                     #cost fxn: J(w,b,x,y) = 1/2 ||ytrue - h^(nl)||^2
@@ -265,18 +264,26 @@ def train_nn(nn_structure, X, y, iter_num=1, alpha=0.25):
                         #set of wts) * input + first biases (the input to the hidden lyr)
 
 
-                    '''Formal notation: triW^(l) = triW^(l) + delta^(l+1) * transpose(h^(l))'''
-                    tri_W[l] += np.dot(delta[l+1][:,np.newaxis], np.transpose(h[l][:, np.newaxis]))
-
-                    '''Formal notation: trib^(l) = trib^(l) + delta^(l+1)'''
-                    tri_b[l] += delta[l+1]
+                    '''The gradient descent can be calculated as:
+                    (new wts matrix for this lyr) = (old wts matrix for this lyr) - (alpha) * (calculated avg rate of change of cost w.r.t. wts matrix for this lyr)
+                                     = (old wts matrix) - (alpha) * [ (1/m) * (sum of (dJ/dW(l) for all training data'''
 
 
-        #perform gradient descent step for wts in each layer
+                    #add dJ/dW matrix for this layer to cumulative sum (see attached doc for more info)
+                    cumulative_dJ_dW_sum[l] += np.dot(delta[l+1][:,np.newaxis], np.transpose(h[l][:, np.newaxis])) #newaxis here converts [1, 2, 3] to [[1], [2], [3]]
+                    '''Formal notation: triW^(l)(new) = triW^(l)(old) + delta^(l+1) * transpose(h^(l))'''
+
+                    #add dJ/db matrix for this layer to cumulative sum (see attached doc for more info)
+                    cumulative_dJ_db_sum[l] += delta[l+1]
+                    '''Formal notation: trib^(l)(new) = trib^(l)(old) + delta^(l+1)'''
+
+
+        #perform gradient descent step (updating wts) for wts in each layer
         for l in range(len(nn_structure) - 1, 0, -1):
-            
-            W[l] += -alpha * (1.0/m * tri_W[l])
-            b[l] += -alpha * (1.0/m * tri_b[l])
+            #add -alpha mult by the average rate of change of cost w.r.t. wts matrix and bias matrix for this layer
+            W[l] += -alpha * (1.0 / m * cumulative_dJ_dW_sum[l])
+            b[l] += -alpha * (1.0 / m * cumulative_dJ_db_sum[l])
+            #thus if the avg rate of change of the cost is negative (good), we'll add to the wts, and if it's positive (bad), we'll subtract from the wts 
 
         #complete avg cost calc by dividing summed costs by number of training data (m)
         avg_cost = 1.0/m * avg_cost
